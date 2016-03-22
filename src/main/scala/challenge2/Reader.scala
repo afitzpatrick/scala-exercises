@@ -20,7 +20,8 @@ case class Reader[R, A](run: R => A) {
    * Two readers are equal if for all inputs, the same result is produced.
    */
   def map[B](f: A => B): Reader[R, B] =
-    ???
+    Reader(i => f(run(i)))
+
 
   /*
    * Exercise 2.2:
@@ -33,8 +34,9 @@ case class Reader[R, A](run: R => A) {
    * Two readers are equal if for all inputs, the same result is produced.
    */
   def flatMap[B](f: A => Reader[R, B]): Reader[R, B] =
-    ???
+    Reader(i => f(run(i)).run(i))
 }
+
 
 object Reader {
   /*
@@ -45,7 +47,7 @@ object Reader {
    * Hint: Try using Reader constructor.
    */
   def value[R, A](a: => A): Reader[R, A] =
-    ???
+    Reader((i: R) => a)
 
   /*
    * Exercise 2.4:
@@ -57,7 +59,7 @@ object Reader {
    * Hint: Try using Reader constructor.
    */
   def ask[R]: Reader[R, R] =
-    ???
+    Reader((i:R) => i)
 
   /*
    * Exercise 2.5:
@@ -69,7 +71,7 @@ object Reader {
    * Hint: Try using Reader constructor.
    */
   def local[R, A](f: R => R)(reader: Reader[R, A]): Reader[R, A] =
-    ???
+    Reader((i:R) => reader.run(f(i)))
 
   /*
    * Exercise 2.6:
@@ -77,7 +79,7 @@ object Reader {
    * Sequence, a list of Readers, to a Reader of Lists.
    */
   def sequence[R, A](readers: List[Reader[R, A]]): Reader[R, List[A]] =
-    ???
+    Reader((i:R) => readers.map(_.run(i)))
 
   implicit def ReaderMonoid[R, A: Monoid]: Monoid[Reader[R, A]] =
     new Monoid[Reader[R, A]] {
@@ -128,7 +130,12 @@ object Example {
    * Hint: Starting with Reader.ask will help.
    */
   def direct(name: String): Reader[Config, List[String]] =
-    ???
+    Reader[Config, List[String]](c =>
+      c.data.find(_.name == name)
+        .map(_.values)
+        .getOrElse(Nil))
+
+
 
   /*
    * For a single name, lookup all of the indirect values, that
@@ -141,5 +148,9 @@ object Example {
    * Hint: Starting with Reader.sequence will be important.
    */
   def indirect(name: String): Reader[Config, List[String]] =
-    ???
+    Reader[Config, List[String]] { c =>
+      direct(name).run(c).map { key =>
+        direct(key).run(c)
+      }.flatten
+    }
 }
